@@ -1,15 +1,18 @@
 "use strict";
 
+import Queue from "./queue.js";
+
 window.addEventListener("load", start);
-// ****** Variables ******
-// #region variables
-const rows = 20;
-const cols = 20;
+// ****** Constants ******
+// #region Constants
+const rows = 30;
+const cols = 30;
+const startFood = 12;
 
 
 // ****** CONTROLLER ******
 // #region controller
-
+let autoPlay = false;
 function start() {
   console.log(`Javascript kører`);
 
@@ -18,50 +21,58 @@ function start() {
   createBoard(rows, cols);
 
   // start ticking
-  setInterval(tick, 100);
   document.addEventListener("keydown", function(event) {
+    
     switch (event.key) {
       case "w":
         if (direction !== "down") nextDirection = "up";
-      
-        break;
-      case "s":
-        if (direction !== "up") nextDirection = "down";
-
-        break;
-      case "a":
-        if (direction !== "right") nextDirection = "left";
         
         break;
-      case "d":
-        if (direction !== "left") nextDirection = "right";
-
+        case "s":
+          if (direction !== "up") nextDirection = "down";
+          
         break;
-    }
-  });
-
+        case "a":
+          if (direction !== "right") nextDirection = "left";
+            
+        break;
+        case "d":
+          if (direction !== "left") nextDirection = "right";
+          
+          break;
+        case " ":
+          autoPlay = !autoPlay;
+          }
+        });
+          
+  setInterval(tick, 20);
   spawnFood();
 
 }
 
 function tick() {
   
+  let frontBack = [pQueue.head(), pQueue.tail()];
 
-  // TODO: Do stuff
-  queue.forEach((bodyPart, index) => {
-    writeToCell(bodyPart.row, bodyPart.col, 0);
-  });
+  
+  
+  for (let i = 0; i < pQueue.size(); i++) {
+    writeToCell(pQueue.get(i).row, pQueue.get(i).col, 0);
+  }
+  
   
 
   // move player
-  
   movePlayer();
   
   
   
-  queue.forEach((bodyPart, index) => {
-    writeToCell(bodyPart.row, bodyPart.col, 1);
-  });
+  for (let i = 0; i < pQueue.size(); i++) {
+    writeToCell(pQueue.get(i).row, pQueue.get(i).col, 1);
+  }
+  if (autoPlay) {
+    movePlayerAuto(0);
+  }
   checkForFood();
   checkForBody();
   
@@ -71,8 +82,8 @@ function tick() {
 
 function movePlayer() {
   const newHead = {
-    row: queue[queue.length-1].row,
-    col: queue[queue.length-1].col
+    row: pQueue.tail().row,
+    col: pQueue.tail().col
   };
   direction = nextDirection;
 
@@ -106,16 +117,91 @@ function movePlayer() {
     default:
       break;
   }
-  queue.push(newHead);
+  
+  
+  pQueue.enqueue(newHead);
   if (!food > 0){
-    queue.shift();
+    pQueue.dequeue();
+     
   } else food--;
   
   
 }
 
+function movePlayerAuto(attempts) {
+  // if (attempts >= 1) console.log("Tried moving the player to: ", nextDirection, attempts);
+  
+  if (attempts > 3) return;
+
+  const tail = pQueue.tail();
+  let row = tail.row;
+  let col = tail.col;
+
+  switch (nextDirection) {
+    case "right":
+      if (col + 1 >= cols) col = 0;
+      if (model[row][col + 1] === 1) {
+        nextDirection = "down";
+        movePlayerAuto(attempts + 1);
+      }
+      break;
+    case "down":
+      if (row + 1 >= rows) row = 0;
+      if (model[row + 1][col] === 1) {
+        nextDirection = "left";
+        movePlayerAuto(attempts + 1);
+      }
+      break;
+    case "left":
+      if (col - 1 < 0) col = cols - 1;
+      if (model[row][col - 1] === 1) {
+        nextDirection = "up";
+        movePlayerAuto(attempts + 1);
+      }
+      break;
+    case "up":
+      if (row - 1 < 0) row = rows - 1;
+      if (model[row - 1][col] === 1) {
+        nextDirection = "right";
+        movePlayerAuto(attempts + 1);
+      }
+      break;
+
+    default:
+      break;
+
+  }
+  if (attempts < 1) movePlayerAutoToFood();
+}
+
+function movePlayerAutoToFood() {
+  
+  const tail = pQueue.tail();
+  const row = tail.row;
+  const col = tail.col;
+
+  if (foodLocation.row == row) {
+    if (foodLocation.col > col && nextDirection !== "left" && nextDirection !== "right") {
+      nextDirection = "right";
+      console.log("Moving right for food");
+    } else if (foodLocation.col < col && nextDirection !== "right" && nextDirection !== "left") {
+      nextDirection = "left";
+      console.log("Moving left for food");
+    }
+  } else if (foodLocation.col == col) {
+    if (foodLocation.row > row && nextDirection !== "up" && nextDirection !== "down") {
+      nextDirection = "down";
+      console.log("Moving down for food");
+    } else if (foodLocation.row < row && nextDirection !== "down" && nextDirection !== "up") {
+      nextDirection = "up";
+      console.log("Moving up for food");
+    }
+  }
+  movePlayerAuto(1);
+}
+
 function checkForFood() {
-  if (queue[queue.length-1].row === foodLocation.row && queue[queue.length-1].col === foodLocation.col) {
+  if (pQueue.tail().row === foodLocation.row && pQueue.tail().col === foodLocation.col) {
     writeToCell(foodLocation.row, foodLocation.col, 1);
 
     food++;
@@ -123,11 +209,12 @@ function checkForFood() {
   }
 }
 
+// idk how to get pQueue[i] without breaking the intended functionality 
 function checkForBody(){
-  for (let i = 0; i < queue.length-1; i++) {
-    if (queue[queue.length-1].row === queue[i].row && queue[queue.length-1].col === queue[i].col) {
-      queue = [{ row: 5, col: 5 }];
-      food = 2;
+  for (let i = 0; i < pQueue.size() -1; i++) {
+    if (pQueue.tail().row === pQueue.get(i).row && pQueue.tail().col === pQueue.get(i).col) {
+      pQueue.reset(randomizePlayerStart());
+      food = startFood;
       clearBoard();
       spawnFood();
       break;
@@ -140,12 +227,11 @@ function checkForBody(){
 // ****** MODEL ******
 // #region model
 
+let pQueue = new Queue();
+pQueue.enqueue(randomizePlayerStart());
 
-let queue = [
-  { row: 5, col: 5 }
-]
 
-let food = 2;
+let food = startFood;
 let foodLocation = { row: 0, col: 0 };
   
 let direction = "right";
@@ -180,8 +266,12 @@ function readFromCell(row, col) {
   return model[row][col];
 }
 
-function playerMove(row, col) {
+function randomizePlayerStart() {
+  const row = Math.floor(Math.random() * rows);
+  const col = Math.floor(Math.random() * cols);
+  return { row, col };
 }
+
 
 function spawnFood() {
   foodLocation.row = Math.floor(Math.random() * rows);
@@ -232,6 +322,11 @@ function displayBoard() {
     }
   }
 }
+
+function logBoard() {
+  console.log(model);
+}
+window.logBoard = logBoard;
 
 
 
