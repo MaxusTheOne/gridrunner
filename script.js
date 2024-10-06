@@ -13,6 +13,7 @@ const startFood = 12;
 // ****** CONTROLLER ******
 // #region controller
 let autoPlay = false;
+let score = 0;
 function start() {
   console.log(`Javascript kører`);
 
@@ -203,7 +204,7 @@ function movePlayerAutoToFood() {
 function checkForFood() {
   if (pQueue.tail().row === foodLocation.row && pQueue.tail().col === foodLocation.col) {
     writeToCell(foodLocation.row, foodLocation.col, 1);
-
+    score++;
     food++;
     spawnFood();
   }
@@ -213,13 +214,19 @@ function checkForFood() {
 function checkForBody(){
   for (let i = 0; i < pQueue.size() -1; i++) {
     if (pQueue.tail().row === pQueue.get(i).row && pQueue.tail().col === pQueue.get(i).col) {
-      pQueue.reset(randomizePlayerStart());
-      food = startFood;
-      clearBoard();
-      spawnFood();
+      resetGame();
       break;
     }
   }
+}
+
+function resetGame() {
+  pQueue.reset(randomizePlayerStart());
+  food = startFood;
+  clearBoard();
+  spawnFood();
+  setHighscore(score);
+  score = 0;
 }
 
 // #endregion controller
@@ -322,6 +329,14 @@ function displayBoard() {
     }
   }
 }
+
+function setHighscore(score) {
+  const highscore = document.querySelector("#highScore");
+  if (score > highscore.textContent){
+  highscore.textContent = score;
+}
+}
+
 
 function logBoard() {
   console.log(model);
